@@ -1,0 +1,40 @@
+name: Build Rubeus
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v2
+
+    - name: Force Update Target Framework
+      # Force all projects to target .NET Framework 4.8
+      run: |
+        $projFiles = Get-ChildItem -Filter *.csproj -Recurse
+        foreach ($file in $projFiles) {
+          (Get-Content $file.FullName) -replace '<TargetFrameworkVersion>v4.0</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>' | Set-Content $file.FullName
+        }
+      shell: powershell
+
+    - name: Restore NuGet Packages
+      run: nuget restore Rubeus.sln
+
+    - name: Build Solution
+      run: msbuild Rubeus.sln /p:Configuration=Release /p:Platform="Any CPU"
+      shell: powershell
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Rubeus-Binary
+        path: "**/bin/Release/Rubeus.exe"
